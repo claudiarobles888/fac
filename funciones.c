@@ -213,30 +213,44 @@ void editFactura(int cedula)
         fclose(file);
     }
 void deleteFactura(int cedula)
+{
+    FILE *file;
+    struct Factura factura;
+    struct Factura *facturas = NULL;
+    int count = 0;
+    
+    file = fopen("factura.txt", "rb");
+    if (file == NULL)
     {
-        FILE *file;
-        FILE *temp;
-        struct Factura factura;
-        file = fopen("factura.txt", "rb");
-        temp = fopen("temp.txt", "wb");
-        if (file == NULL)
-        {
-            printf("Error al abrir el archivo\n");
-            exit(1);
-        }
-        else
-        {
-            while (fread(&factura, sizeof(struct Factura), 1, file))
-            {
-                if (factura.cedula != cedula)
-                {
-                    fwrite(&factura, sizeof(struct Factura), 1, temp);
-                }
-            }
-        }
-        fclose(file);
-        fclose(temp);
-        remove("factura.txt");
-        rename("temp.txt", "factura.txt");
-        printf("Factura eliminada con exito\n");
+        printf("Error al abrir el archivo\n");
+        exit(1);
     }
+    
+    // Leer todas las facturas en memoria
+    while (fread(&factura, sizeof(struct Factura), 1, file))
+    {
+        if (factura.cedula != cedula)
+        {
+            facturas = realloc(facturas, sizeof(struct Factura) * (count + 1));
+            facturas[count] = factura;
+            count++;
+        }
+    }
+    fclose(file);
+    
+    // Reescribir el archivo sin la factura eliminada
+    file = fopen("factura.txt", "wb");
+    if (file == NULL)
+    {
+        printf("Error al abrir el archivo\n");
+        exit(1);
+    }
+    
+    for (int i = 0; i < count; i++)
+    {
+        fwrite(&facturas[i], sizeof(struct Factura), 1, file);
+    }
+    
+    fclose(file);
+    free(facturas);
+}
