@@ -212,45 +212,49 @@ void editFactura(int cedula)
         }
         fclose(file);
     }
-void deleteFactura(int cedula)
-{
+    
+void deleteFactura(int cedula) {
     FILE *file;
     struct Factura factura;
-    struct Factura *facturas = NULL;
-    int count = 0;
-    
-    file = fopen("factura.txt", "rb");
-    if (file == NULL)
-    {
-        printf("Error al abrir el archivo\n");
+    int encontrado = 0;
+
+    // Abrir archivo en modo lectura y escritura
+    file = fopen("factura.txt", "rb+");
+    if (file == NULL) {
+        perror("Error al abrir el archivo");
         exit(1);
     }
-    
-    // Leer todas las facturas en memoria
-    while (fread(&factura, sizeof(struct Factura), 1, file))
-    {
-        if (factura.cedula != cedula)
-        {
-            facturas = realloc(facturas, sizeof(struct Factura) * (count + 1));
-            facturas[count] = factura;
-            count++;
+
+    // Leer todas las facturas y sobrescribir las que no coincidan con la cédula
+    fpos_t write_pos, read_pos;
+    fgetpos(file, &write_pos); // Posición inicial de escritura
+
+    while (fread(&factura, sizeof(struct Factura), 1, file)) {
+        if (factura.cedula == cedula) {
+            encontrado = 1; // Factura encontrada, no la copiamos
+        } else {
+            fgetpos(file, &read_pos); // Guardar la posición de lectura actual
+            fsetpos(file, &write_pos); // Mover a la posición de escritura
+            if (fwrite(&factura, sizeof(struct Factura), 1, file) != 1) {
+                perror("Error al escribir en el archivo");
+                fclose(file);
+                exit(1);
+            }
+            fsetpos(file, &read_pos); // Restaurar posición de lectura
         }
+        fgetpos(file, &write_pos); // Actualizar posición de escritura
     }
+
+    // Truncar el archivo si se eliminó alguna factura
+    if (encontrado) {
+        if (ftruncate(fileno(file), ftell(file)) != 0) {
+            perror("Error al truncar el archivo");
+        } else {
+            printf("Factura eliminada con éxito.\n");
+        }
+    } else {
+        printf("Factura con cédula %d no encontrada.\n", cedula);
+    }
+
     fclose(file);
-    
-    // Reescribir el archivo sin la factura eliminada
-    file = fopen("factura.txt", "wb");
-    if (file == NULL)
-    {
-        printf("Error al abrir el archivo\n");
-        exit(1);
-    }
-    
-    for (int i = 0; i < count; i++)
-    {
-        fwrite(&facturas[i], sizeof(struct Factura), 1, file);
-    }
-    
-    fclose(file);
-    free(facturas);
 }
